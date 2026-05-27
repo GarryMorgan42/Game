@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Корпоративное Королевство</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #020617;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useMemo } = React;
+
+// ============ ДАННЫЕ ============
+
+const SCALES = {
+  treasury: { name: "Казна", icon: "💰", color: "from-yellow-500 to-amber-600" },
+  people:   { name: "Народ", icon: "👥", color: "from-emerald-500 to-teal-600" },
+  ai:       { name: "Магия ИИ", icon: "🧠", color: "from-cyan-400 to-blue-500" },
+  council:  { name: "Совет", icon: "⚜️", color: "from-purple-500 to-fuchsia-600" },
+};
+
+const CASES = [
+  {
+    id: 1,
+    title: "Воевода просит усилить границу",
+    desc: "Степняки усилили набеги на южные рубежи. Воевода просит прислать людей, железо и умных помощников.",
+    character: "🛡️",
+    options: [
+      { color: "red",   label: "Прислать дружину",       sub: "Живые воины, проверенный путь",   effects: { treasury: -15, people: +10, ai: -5,  council: +10 } },
+      { color: "blue",  label: "Дружина + тактик-ИИ",    sub: "Люди в поле, ИИ планирует манёвры",effects: { treasury: -10, people: +5,  ai: +10, council: +5  } },
+      { color: "green", label: "Автономные машины",      sub: "Только дроны и алгоритмы",         effects: { treasury: -20, people: -15, ai: +20, council: -10 } },
+    ],
+  },
+  {
+    id: 2,
+    title: "Чума в посаде",
+    desc: "В нижнем городе вспышка болезни. Лекари не справляются, народ требует помощи.",
+    character: "⚕️",
+    options: [
+      { color: "red",   label: "Послать всех лекарей",   sub: "Опыт, забота, человеческое тепло",effects: { treasury: -10, people: +20, ai: -10, council: +5  } },
+      { color: "blue",  label: "Лекари с ИИ-диагностом", sub: "Скорость алгоритма + рука врача", effects: { treasury: -15, people: +15, ai: +10, council: 0   } },
+      { color: "green", label: "Алхимический ИИ-конвейер",sub: "Полная автоматизация лечения",   effects: { treasury: -20, people: -5,  ai: +20, council: -15 } },
+    ],
+  },
+  {
+    id: 3,
+    title: "Совет требует отчёт о казне",
+    desc: "Бояре подозревают воровство и хотят полной ревизии.",
+    character: "📜",
+    options: [
+      { color: "red",   label: "Ручная ревизия писцов",  sub: "Долго, но традиционно",           effects: { treasury: -5,  people: +5,  ai: -10, council: +15 } },
+      { color: "blue",  label: "Аудит писцов + ИИ",      sub: "Прозрачность и скорость",         effects: { treasury: +10, people: +5,  ai: +10, council: +10 } },
+      { color: "green", label: "ИИ-аудитор в реальном времени", sub: "Бояре не у дел",          effects: { treasury: +20, people: -5,  ai: +15, council: -20 } },
+    ],
+  },
+  {
+    id: 4,
+    title: "Урожай горит",
+    desc: "Засуха грозит голодом. Нужно решать с поливом и хранением.",
+    character: "🌾",
+    options: [
+      { color: "red",   label: "Мобилизация крестьян",   sub: "Народная стройка каналов",        effects: { treasury: -10, people: +10, ai: -5,  council: +5  } },
+      { color: "blue",  label: "Артели + ИИ-агроном",    sub: "ИИ считает, люди копают",         effects: { treasury: -5,  people: +15, ai: +10, council: +5  } },
+      { color: "green", label: "Полностью ИИ-ирригация", sub: "Дроны и автополив",               effects: { treasury: -25, people: -10, ai: +25, council: -10 } },
+    ],
+  },
+  {
+    id: 5,
+    title: "Заговор в тереме",
+    desc: "До государя дошёл слух: кто-то из ближних бояр готовит измену.",
+    character: "🗡️",
+    options: [
+      { color: "red",   label: "Личный розыск стражи",   sub: "Допросы и наблюдение людьми",     effects: { treasury: -5,  people: -5,  ai: -5,  council: +20 } },
+      { color: "blue",  label: "Стража + ИИ-анализ писем", sub: "Доказательства из переписки",  effects: { treasury: -10, people: 0,   ai: +10, council: +5  } },
+      { color: "green", label: "Тотальная ИИ-слежка",    sub: "Алгоритм видит всё",              effects: { treasury: -15, people: -20, ai: +20, council: -15 } },
+    ],
+  },
+  {
+    id: 6,
+    title: "Послы из соседнего княжества",
+    desc: "Прибыли с торговым договором. Условия мутные, но выгода велика.",
+    character: "🤝",
+    options: [
+      { color: "red",   label: "Думный дьяк ведёт переговоры", sub: "Опыт и интуиция",          effects: { treasury: +10, people: +5,  ai: -5,  council: +15 } },
+      { color: "blue",  label: "Дьяк + ИИ-переводчик",   sub: "Никаких уловок в формулировках", effects: { treasury: +20, people: +5,  ai: +10, council: +10 } },
+      { color: "green", label: "ИИ-дипломат сам решает", sub: "Бояре в шоке",                    effects: { treasury: +30, people: -10, ai: +20, council: -25 } },
+    ],
+  },
+];
+
+const ARCHETYPES = {
+  green: {
+    name: "Техно-авантюрист",
+    icon: "⚡",
+    desc: "Ты доверяешь алгоритмам больше, чем людям. Королевство мчится в будущее — но удержит ли тебя народ в седле?",
+    color: "from-emerald-500 to-cyan-500",
+  },
+  red: {
+    name: "Ручной контролёр",
+    icon: "✊",
+    desc: "Ты веришь в людей и старые добрые методы. Надёжно, человечно — но мир уходит вперёд без тебя.",
+    color: "from-rose-500 to-orange-500",
+  },
+  blue: {
+    name: "Сбалансированный лидер",
+    icon: "⚖️",
+    desc: "Ты умеешь соединять железо традиций и магию ИИ. Народ уважает, совет слушает, казна цела.",
+    color: "from-indigo-500 to-purple-500",
+  },
+};
+
+// ============ КОМПОНЕНТЫ ============
+
+const NeonFrame = ({ children, className = "" }) => (
+  <div className={`relative ${className}`}>
+    <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-600/30 to-fuchsia-600/20 blur-xl" />
+    <div className="relative rounded-2xl border-2 border-purple-400/60 bg-slate-900/80 backdrop-blur-sm shadow-[0_0_40px_rgba(168,85,247,0.4)]">
+      {children}
+    </div>
+  </div>
+);
+
+const ScaleBar = ({ scaleKey, value }) => {
+  const s = SCALES[scaleKey];
+  const danger = value <= 15 || value >= 85;
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs font-bold tracking-wide">
+        <span className="text-purple-200">{s.icon} {s.name}</span>
+        <span className={danger ? "text-red-400 animate-pulse" : "text-cyan-200"}>{value}</span>
+      </div>
+      <div className="h-3 rounded-full bg-slate-800 border border-purple-500/40 overflow-hidden">
+        <div
+          className={`h-full bg-gradient-to-r ${s.color} transition-all duration-700`}
+          style={{ width: `${value}%` }}
+        />
+      </div>
+    </div>
+  );
+};
+
+const OptionButton = ({ option, onClick }) => {
+  const palette = {
+    red:   "border-rose-400/70 from-rose-900/40 to-rose-700/20 hover:border-rose-300 text-rose-100",
+    blue:  "border-cyan-400/70 from-cyan-900/40 to-blue-700/20 hover:border-cyan-300 text-cyan-100",
+    green: "border-emerald-400/70 from-emerald-900/40 to-teal-700/20 hover:border-emerald-300 text-emerald-100",
+  }[option.color];
+  const icon = { red: "🛡️", blue: "🧠", green: "⚙️" }[option.color];
+
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full text-left p-4 rounded-xl border-2 bg-gradient-to-br ${palette}
+        transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_0_25px_rgba(168,85,247,0.5)] group`}
+    >
+      <div className="flex items-start gap-3">
+        <div className="text-3xl group-hover:scale-110 transition-transform">{icon}</div>
+        <div className="flex-1">
+          <div className="font-extrabold uppercase tracking-wider text-sm mb-1">{option.label}</div>
+          <div className="text-xs opacity-80">{option.sub}</div>
+        </div>
+      </div>
+    </button>
+  );
+};
+
+// ============ ГЛАВНОЕ ПРИЛОЖЕНИЕ ============
+
+function App() {
+  const [screen, setScreen] = useState("intro");
+  const [scales, setScales] = useState({ treasury: 50, people: 50, ai: 50, council: 50 });
+  const [step, setStep] = useState(0);
+  const [choices, setChoices] = useState([]);
+  const [catastropheText, setCatastropheText] = useState("");
+
+  const clamp = (v) => Math.max(0, Math.min(100, v));
+
+  const handleChoose = (option) => {
+    const next = { ...scales };
+    Object.entries(option.effects).forEach(([k, v]) => { next[k] = clamp(next[k] + v); });
+    const newChoices = [...choices, option.color];
+    setScales(next);
+    setChoices(newChoices);
+
+    const failed = Object.entries(next).find(([, v]) => v <= 0 || v >= 100);
+    if (failed) {
+      const [key, val] = failed;
+      const nm = SCALES[key].name;
+      setCatastropheText(
+        val <= 0
+          ? `Шкала «${nm}» рухнула до нуля. Королевство погружается во тьму.`
+          : `Шкала «${nm}» переполнилась до 100. Перекос разрушил баланс власти.`
+      );
+      setScreen("catastrophe");
+      return;
+    }
+
+    if (step + 1 >= CASES.length) setScreen("final");
+    else setStep(step + 1);
+  };
+
+  const reset = () => {
+    setScales({ treasury: 50, people: 50, ai: 50, council: 50 });
+    setStep(0);
+    setChoices([]);
+    setScreen("intro");
+  };
+
+  const dominant = useMemo(() => {
+    const c = { red: 0, blue: 0, green: 0 };
+    choices.forEach((x) => c[x]++);
+    return Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] || "blue";
+  }, [choices]);
+
+  const archetype = ARCHETYPES[dominant];
+
+  const share = async () => {
+    const text = `Я — ${archetype.name} ${archetype.icon} в игре «Корпоративное Королевство». ${archetype.desc}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: "Корпоративное Королевство", text }); } catch {}
+    } else {
+      await navigator.clipboard.writeText(text);
+      alert("Текст скопирован в буфер обмена!");
+    }
+  };
+
+  return (
+    <div className="min-h-screen w-full text-white font-sans relative overflow-hidden"
+      style={{ background: "radial-gradient(ellipse at top, #1e1b4b 0%, #0f172a 50%, #020617 100%)" }}>
+      <div className="absolute inset-0 opacity-30 pointer-events-none">
+        <div className="absolute bottom-0 left-10 w-40 h-96 bg-gradient-to-t from-purple-600/40 to-transparent blur-2xl" />
+        <div className="absolute bottom-0 right-10 w-40 h-96 bg-gradient-to-t from-cyan-500/40 to-transparent blur-2xl" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-60 h-[28rem] bg-gradient-to-t from-amber-400/30 to-transparent blur-2xl" />
+      </div>
+
+      <div className="relative max-w-4xl mx-auto p-4 md:p-8">
+        <header className="text-center mb-6">
+          <h1 className="text-4xl md:text-6xl font-black tracking-wider bg-gradient-to-b from-white via-cyan-100 to-purple-200 bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(168,85,247,0.6)]">
+            КОРПОРАТИВНОЕ КОРОЛЕВСТВО
+          </h1>
+          <p className="text-purple-300/80 text-sm mt-1 tracking-widest uppercase">
+            Приказы Государя · Судьба Руси в твоих руках
+          </p>
+        </header>
+
+        {screen === "intro" && (
+          <NeonFrame>
+            <div className="p-8 text-center space-y-6">
+              <div className="text-7xl">👑</div>
+              <h2 className="text-2xl font-bold text-purple-100">Ты — государь нового времени</h2>
+              <p className="text-purple-200/90 leading-relaxed">
+                Шесть кризисов. Три пути для каждого:
+                <span className="text-rose-300"> люди</span>,{" "}
+                <span className="text-cyan-300">люди + ИИ</span> или{" "}
+                <span className="text-emerald-300">чистый ИИ</span>.
+                <br />
+                Следи за <b>Казной</b>, <b>Народом</b>, <b>Магией ИИ</b> и <b>Советом</b>.
+                Если хоть одна шкала упадёт в 0 или взлетит до 100 — катастрофа.
+              </p>
+              <button
+                onClick={() => setScreen("game")}
+                className="px-10 py-4 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 font-bold tracking-wider uppercase shadow-[0_0_30px_rgba(168,85,247,0.6)] hover:scale-105 transition-all">
+                ✦ Начать правление ✦
+              </button>
+            </div>
+          </NeonFrame>
+        )}
+
+        {screen === "game" && (
+          <div className="space-y-6">
+            <NeonFrame>
+              <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Object.keys(SCALES).map((k) => (<ScaleBar key={k} scaleKey={k} value={scales[k]} />))}
+              </div>
+            </NeonFrame>
+
+            <div className="flex justify-between items-center text-purple-200 text-sm">
+              <span>Кейс {step + 1} из {CASES.length}</span>
+              <div className="flex gap-1">
+                {CASES.map((_, i) => (
+                  <div key={i} className={`w-8 h-1.5 rounded-full ${
+                    i < step ? "bg-emerald-400" : i === step ? "bg-purple-400" : "bg-slate-700"
+                  }`} />
+                ))}
+              </div>
+            </div>
+
+            <NeonFrame>
+              <div className="p-6 md:p-8">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="text-6xl">{CASES[step].character}</div>
+                  <div>
+                    <h2 className="text-2xl font-extrabold uppercase tracking-wide text-purple-100">
+                      {CASES[step].title}
+                    </h2>
+                    <p className="text-purple-200/85 mt-2 leading-relaxed">{CASES[step].desc}</p>
+                    <p className="mt-3 font-bold text-cyan-200">Как поступим?</p>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-3">
+                  {CASES[step].options.map((opt, i) => (
+                    <OptionButton key={i} option={opt} onClick={() => handleChoose(opt)} />
+                  ))}
+                </div>
+              </div>
+            </NeonFrame>
+          </div>
+        )}
+
+        {screen === "catastrophe" && (
+          <NeonFrame>
+            <div className="p-8 text-center space-y-5">
+              <div className="text-7xl animate-pulse">💥</div>
+              <h2 className="text-3xl font-black text-rose-300 tracking-wider uppercase">Катастрофа!</h2>
+              <p className="text-purple-100 text-lg max-w-xl mx-auto">{catastropheText}</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto pt-4">
+                {Object.keys(SCALES).map((k) => (<ScaleBar key={k} scaleKey={k} value={scales[k]} />))}
+              </div>
+              <button onClick={reset}
+                className="mt-6 px-8 py-3 rounded-xl bg-gradient-to-r from-rose-600 to-purple-600 font-bold uppercase tracking-wider hover:scale-105 transition">
+                Начать новую историю
+              </button>
+            </div>
+          </NeonFrame>
+        )}
+
+        {screen === "final" && (
+          <NeonFrame>
+            <div className="p-8 text-center space-y-6">
+              <div className="text-7xl">{archetype.icon}</div>
+              <div className="text-purple-300 uppercase tracking-widest text-sm">Твой архетип правителя</div>
+              <h2 className={`text-4xl font-black tracking-wide bg-gradient-to-r ${archetype.color} bg-clip-text text-transparent`}>
+                {archetype.name}
+              </h2>
+              <p className="text-purple-100 max-w-xl mx-auto leading-relaxed text-lg">{archetype.desc}</p>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto pt-4">
+                {Object.keys(SCALES).map((k) => (<ScaleBar key={k} scaleKey={k} value={scales[k]} />))}
+              </div>
+
+              <div className="flex flex-wrap gap-3 justify-center pt-4">
+                <button onClick={share}
+                  className="px-8 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 font-bold uppercase tracking-wider hover:scale-105 transition shadow-[0_0_25px_rgba(34,211,238,0.5)]">
+                  📤 Поделиться
+                </button>
+                <button onClick={reset}
+                  className="px-8 py-3 rounded-xl border-2 border-purple-400/60 bg-slate-900/70 font-bold uppercase tracking-wider hover:bg-purple-900/40 transition">
+                  Начать заново
+                </button>
+              </div>
+            </div>
+          </NeonFrame>
+        )}
+
+        <footer className="text-center text-purple-400/50 text-xs mt-8 tracking-widest uppercase">
+          ✦ Новая История ✦
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
